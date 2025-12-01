@@ -1,40 +1,62 @@
-"""
-Модуль графического интерфейса шашек
-"""
-import pygame
-import sys
-from game_logic import CheckersGame
+from logic import ConsoleCheckersGame
 
-class CheckersUI:
+class ConsoleCheckersUI:
     def __init__(self):
-        self.game = CheckersGame()
-        self.cell_size = 80
-        self.board_size = 8 * self.cell_size
-        self.selected_piece = None
-        self.valid_moves = []
-        
-        # Инициализация Pygame
-        pygame.init()
-        self.screen = pygame.display.set_mode((self.board_size, self.board_size))
-        pygame.display.set_caption("Шашки")
-        
-        # Цвета
-        self.colors = {
-            'light': (240, 217, 181),
-            'dark': (181, 136, 99),
-            'highlight': (106, 190, 48),
-            'move_highlight': (70, 130, 180),
-            'white': (255, 255, 255),
-            'black': (60, 60, 60),
-            'white_king': (200, 200, 255),
-            'black_king': (100, 100, 150)
-        }
-        
-        # Шрифт
-        self.font = pygame.font.SysFont('Arial', 24)
+        self.game = ConsoleCheckersGame()
     
-    def draw_board(self):
-        """Отрисовка игровой доски"""
+    def display_board(self):
+        board = self.game.get_board()
+        
+        print("\n   " + " ".join(str(i) for i in range(8)))
+        print("  " + "+" + "-" * 15 + "+")
+        
         for row in range(8):
+            print(f"{row} |", end=" ")
             for col in range(8):
-                color = self.colors['light'] if (row + col) % 2 == 0 else
+                piece = board[row][col]
+                if piece == ' ':
+                    symbol = '.' if (row + col) % 2 == 0 else ' '
+                elif piece == 'w':
+                    symbol = 'O'
+                elif piece == 'b':
+                    symbol = 'X'
+                print(symbol, end=" ")
+            print("|")
+        
+        print("  " + "+" + "-" * 15 + "+")
+    
+    def run(self):
+        print("ШАШКИ ЗАПУЩЕНЫ!")
+        print("Формат: строка столбец строка столбец")
+        print("Пример: 5 2 4 3")
+        
+        while True:
+            self.display_board()
+            print(f"\nХод: {self.game.get_current_player()}")
+            
+            try:
+                input_str = input("Ваш ход: ").strip()
+                
+                if input_str.lower() == 'quit':
+                    break
+                
+                coords = list(map(int, input_str.split()))
+                if len(coords) == 4:
+                    from_row, from_col, to_row, to_col = coords
+                    if self.game.move_piece(from_row, from_col, to_row, to_col):
+                        print("ХОД УСПЕШЕН!")
+                    else:
+                        print("НЕВЕРНЫЙ ХОД!")
+                else:
+                    print("НУЖНО 4 ЧИСЛА!")
+                    
+            except ValueError:
+                print("ВВОДИТЕ ТОЛЬКО ЧИСЛА!")
+            except KeyboardInterrupt:
+                break
+        
+        print("ИГРА ОКОНЧЕНА!")
+
+if __name__ == "__main__":
+    game = ConsoleCheckersUI()
+    game.run()
