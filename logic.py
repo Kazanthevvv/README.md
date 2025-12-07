@@ -1,65 +1,138 @@
-class ConsoleCheckersGame:
-    def __init__(self):
-        self.board = [[' ' for _ in range(8)] for _ in range(8)]
-        
-        # Черные шашки
-        for row in range(3):
-            for col in range(8):
-                if (row + col) % 2 == 1:
-                    self.board[row][col] = 'b'
-        
-        # Белые шашки
-        for row in range(5, 8):
-            for col in range(8):
-                if (row + col) % 2 == 1:
-                    self.board[row][col] = 'w'
-        
-        self.current_player = 'white'
-        self.game_over = False
-    
-    def get_board(self):
-        return self.board
-    
-    def get_current_player(self):
-        return self.current_player
-    
-    def is_game_over(self):
-        return self.game_over
-    
-    def move_piece(self, from_row, from_col, to_row, to_col):
-        if self.game_over:
-            return False
-            
-        # Простая проверка хода
-        if not (0 <= from_row < 8 and 0 <= from_col < 8 and 
-                0 <= to_row < 8 and 0 <= to_col < 8):
-            return False
-            
-        piece = self.board[from_row][from_col]
-        if piece == ' ':
-            return False
-            
-        # Проверяем что ходят своей шашкой
-        if (self.current_player == 'white' and piece != 'w') or \
-           (self.current_player == 'black' and piece != 'b'):
-            return False
-        
-        # Простой ход (только вперед на 1 клетку)
-        if self.current_player == 'white':
-            if to_row != from_row - 1 or abs(to_col - from_col) != 1:
-                return False
-        else:  # black
-            if to_row != from_row + 1 or abs(to_col - from_col) != 1:
-                return False
-        
-        # Проверяем что целевая клетка пуста
-        if self.board[to_row][to_col] != ' ':
-            return False
-        
-        # Выполняем ход
-        self.board[from_row][from_col] = ' '
-        self.board[to_row][to_col] = piece
-        
-        # Смена игрока
-        self.current_player = 'black' if self.current_player == 'white' else 'white'
-        return True
+def setup_board():
+    global board
+    board = []
+    for row in range(8):
+        board.append([0] * 8)
+    for row in range(3):
+        for col in range(8):
+            if (row + col) % 2 == 1:
+                board[row][col] = 'b'
+    for row in range(5, 8):
+        for col in range(8):
+            if (row + col) % 2 == 1:
+                board[row][col] = 'w'
+
+def get_captures(row, col, piece, captured_path):
+    captures = []
+    is_king = piece in ['W', 'B']
+    color = piece.lower()
+    directions = []
+    if piece == 'w' or is_king:
+        directions.append((-1, -1))
+        directions.append((-1, 1))
+    if piece == 'b' or is_king:
+        directions.append((1, -1))
+        directions.append((1, 1))
+    for dr, dc in directions:
+        jump_row, jump_col = row + dr, col + dc
+        if 0 <= jump_row < 8 and 0 <= jump_col < 8:
+            jump_piece = board[jump_row][jump_col]
+            if jump_piece != 0 and jump_piece.lower() != color:
+                land_row, land_col = jump_row + dr, jump_col + dc
+                if 0 <= land_row < 8 and 0 <= land_col < 8:
+                    if board[land_row][land_col] == 0:
+                        if (jump_row, jump_col) not in captured_path:
+                            new_captured = captured_path + [(jump_row, jump_col)]
+                            further_captures = get_captures(land_row, land_col, piece, new_captured)
+                            if further_captures:
+                                for fc in further_captures:
+                                    captures.append((land_row, land_col, fc[2]))
+                            else:
+                                captures.append((land_row, land_col, new_captured))
+    return captures
+
+def get_piece_moves(row, col):
+    piece = board[row][col]
+    if piece == 0:
+        return [], []
+    moves = []
+    is_king = piece in ['W', 'B']
+    color = piece.lower()
+    directions = []
+    if piece == 'w' or is_king:
+        directions.append((-1, -1))
+        directions.append((-1, 1))
+    if piece == 'b' or is_king:
+        directions.append((1, -1))
+        directions.append((1, 1))
+    for dr, dc in directions:
+        new_row, new_col = row + dr, col + dc
+        if 0 <= new_row < 8 and 0 <= new_col < 8:
+            if board[new_row][new_col] == 0:
+                moves.append((new_row, new_col, []))
+    captures = get_captures(row, col, piece, [])
+    return moves, captures
+
+def get_all_moves():
+    global current_player
+    all_moves = []
+    all_captures = []
+    for row in range(8):
+        for col in range(8):
+            piece = board[row][col]
+            if piece != 0 and piece.lower() == current_player:
+                moves, captures = get_piece_moves(row, col)
+                if captures:
+                    for capture in captures:
+                        all_captures.append(((row, col), (capture[0], capture[1]), capture[2]))
+                elif not all_captures:
+                    for move in moves:
+                        all_moves.append(((row, col), (move[0], move[1])))
+    if all_captures:
+        max_captures = max(len(capture[2]) for capture in all_captures)
+        best_captures = [cap for cap in all_captures if len(cap[2]) == max_captures]
+        return [], best_captures
+    return all_moves, []
+
+def make_move(from_pos, to_pos, captures=[]):
+    global current_player
+    from_row, from_col = from_pos
+    to_row, to_col = to_pos
+    piece = board[from_row][from_col]
+    board[to_row][to_col] = piece
+    board[from_row][from_col] = 0
+    for cap_row, cap_col in captures:
+        board[cap_row][cap_col] = 0
+    if piece == 'w' and to_row == 0:
+        board[to_row][to_col] = 'W'
+    elif piece == 'b' and to_row == 7:
+        board[to_row][to_col] = 'B'
+    if captures:
+        _, further_captures = get_piece_moves(to_row, to_col)
+        valid_further = []
+        for cap in further_captures:
+            if any(pos not in captures for pos in cap[2]):
+                valid_further.append(cap)
+        if valid_further:
+            max_captures = max(len(cap[2]) for cap in valid_further)
+            best_captures = [cap for cap in valid_further if len(cap[2]) == max_captures]
+            if best_captures:
+                return best_captures
+    current_player = 'b' if current_player == 'w' else 'w'
+    return None
+
+def check_game_over():
+    global current_player
+    white_pieces = 0
+    black_pieces = 0
+    original_player = current_player
+    current_player = 'w'
+    moves_white, captures_white = get_all_moves()
+    white_moves = moves_white + captures_white
+    current_player = 'b'
+    moves_black, captures_black = get_all_moves()
+    black_moves = moves_black + captures_black
+    current_player = original_player
+    for row in range(8):
+        for col in range(8):
+            piece = board[row][col]
+            if piece != 0:
+                if piece.lower() == 'w':
+                    white_pieces += 1
+                else:
+                    black_pieces += 1
+    if white_pieces == 0 or not white_moves:
+        return 'b'
+    elif black_pieces == 0 or not black_moves:
+        return 'w'
+    return None
